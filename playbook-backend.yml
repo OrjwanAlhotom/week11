@@ -1,0 +1,46 @@
+---
+- name: Setup MERN Blog Backend
+  hosts: all
+  become: yes
+
+  tasks:
+    - name: Install Node.js and dependencies
+      apt:
+        name:
+          - nodejs
+          - npm
+          - openssl
+        state: present
+        update_cache: yes
+
+    - name: Create .env file for backend
+      copy:
+        dest: /home/ubuntu/backend/.env
+        content: |
+          PORT=5000
+          HOST=0.0.0.0
+          MODE=production
+          MONGODB={{ mongodb_uri }}
+          JWT_SECRET={{ lookup('pipe', 'openssl rand -hex 32') }}
+          JWT_EXPIRE=30min
+          JWT_REFRESH={{ lookup('pipe', 'openssl rand -hex 32') }}
+          JWT_REFRESH_EXPIRE=3d
+          AWS_ACCESS_KEY_ID={{ aws_access_key }}
+          AWS_SECRET_ACCESS_KEY={{ aws_secret_key }}
+          AWS_REGION=eu-north-1
+          S3_BUCKET={{ s3_bucket }}
+          MEDIA_BASE_URL={{ media_url }}
+          DEFAULT_PAGINATION=20
+
+    - name: Change to backend directory and install packages
+      shell: |
+        cd /home/ubuntu/backend
+        npm install
+
+    - name: Start backend app using PM2
+      shell: |
+        cd /home/ubuntu/backend
+        pm2 start index.js --name blog-backend
+
+    - name: Save PM2 process list
+      command: pm2 save
